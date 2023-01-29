@@ -25,16 +25,26 @@ exports = module.exports = function (io) {
       io.emit("getUsers", users);
     });
 
-    socket.on("sendMessage", ({ senderId, recieverId, text }) => {
-      const user = getUser(recieverId);
-      console.log("text", { senderId, recieverId, text });
+    socket.on("sendMessage", (props) => {
+      const user = getUser(props.recieverId);
 
       if (user) {
-        io.to(user.socketId).emit("getMessage", {
-          senderId,
-          text,
-        });
+        io.to(user.socketId).emit("getMessage", props);
       }
+    });
+
+    socket.on("callUser", ({ userToCall, signalData, from }) => {
+      console.log("users", users);
+      console.log("userToCall", userToCall);
+      console.log("from", from);
+      const user = getUser(userToCall);
+      if (user) io.to(user.socketId).emit("incomingCall", { from, signalData });
+    });
+
+    socket.on("answer-made", ({ answer, id }) => {
+      const user = getUser(props.id);
+
+      io.to(user.socketId).emit("answer-made", { answer, id });
     });
 
     //When User Disconnects

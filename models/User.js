@@ -18,7 +18,8 @@ const userSchema = new Schema({
     type: String,
   },
   profilePicture: String,
-  friends: [mongoose.Schema.Types.ObjectId],
+  friends: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
+  chatGroups: [{ type: mongoose.Schema.Types.ObjectId, ref: "ChatGroup" }],
 });
 
 userSchema.virtual("id").get(function () {

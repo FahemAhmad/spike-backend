@@ -1,26 +1,39 @@
 const mongoose = require("mongoose");
 
-let messageSchema = mongoose.Schema(
-  {
-    conversationId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Conversations",
-    },
-    sender: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
-    },
-    text: {
-      type: String,
-    },
+const messageSchema = new mongoose.Schema({
+  sender: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
   },
-  { timestamps: true }
-);
-
-messageSchema.virtual("id").get(function () {
-  return this._id.toHexString();
+  receiver: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+  },
+  conversationType: {
+    type: String,
+    enum: ["one-to-one", "group"],
+    required: true,
+  },
+  conversationId: {
+    type: mongoose.Schema.Types.ObjectId,
+    refPath: "conversationType",
+  },
+  messageType: {
+    type: String,
+    enum: ["text", "attachment"],
+    required: true,
+  },
+  text: {
+    type: String,
+  },
+  attachment: {
+    type: String,
+  },
+  date: {
+    type: Date,
+    default: Date.now,
+  },
 });
-
-messageSchema.set("toJSON", { virtuals: true });
 
 exports.Message = mongoose.model("Message", messageSchema);

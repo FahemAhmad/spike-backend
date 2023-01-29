@@ -1,8 +1,8 @@
-const server = require("./server");
+const server = require("../server");
 const mongoose = require("mongoose");
 const io = require("socket.io")(8900, {
   cors: {
-    origin: ["http://localhost:5273"],
+    origin: ["http://localhost:5173"],
   },
 });
 const socket = require("./socket")(io);

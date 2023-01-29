@@ -5,6 +5,12 @@ const { User } = require("../models/User");
 const bcrypt = require("bcrypt");
 const multer = require("multer");
 
+const FILE_TYPE_MAP = {
+  "image/png": "png",
+  "image/jpeg": "jpeg",
+  "image/jpg": "jpg",
+};
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     const filepath = "public/uploads";
@@ -12,7 +18,15 @@ const storage = multer.diskStorage({
     cb(null, filepath);
   },
   filename: function (req, file, cb) {
-    cb(null, file.originalname.split(" ").join("-") + "-" + Date.now());
+    const extension = FILE_TYPE_MAP[file.mimetype];
+    cb(
+      null,
+      file.originalname.split(" ").join("-") +
+        "-" +
+        Date.now() +
+        "." +
+        extension
+    );
   },
 });
 const upload = multer({ storage: storage });
@@ -44,10 +58,15 @@ router.post("/signup", upload.single("picture"), async (req, res) => {
         });
       }
       profile = verificationResponse?.payload;
+      profile.given_name = profile?.given_name + " " + profile?.family_name;
       profile.accountStatus = "googleSignIn";
     } else {
       const fileName = req.file.filename;
       const basePath = `${req.protocol}://${req.get("host")}/public/uploads/`;
+
+      if (!req.body.password)
+        return res.status(400).json({ message: "Invalid Input" });
+
       profile = {
         given_name: req.body.name,
         email: req.body.email,
@@ -65,10 +84,11 @@ router.post("/signup", upload.single("picture"), async (req, res) => {
     }
 
     const user = new User({
-      name: profile?.given_name + " " + profile?.family_name,
+      name: profile?.given_name,
       email: profile?.email,
-      profilePicture: profile?.picture,
+      profilePicture: profile?.profilePicture,
       accountStatus: profile?.accountStatus,
+
       password: req.body.password
         ? await bcrypt.hash(req.body.password, 10)
         : undefined,
@@ -79,9 +99,10 @@ router.post("/signup", upload.single("picture"), async (req, res) => {
     res.status(201).json({
       message: "Signup was successful",
       user: {
-        name: profile?.given_name + " " + profile?.family_name,
-        picture: profile?.picture,
+        name: profile?.given_name,
+        picture: profile?.profilePicture,
         email: profile?.email,
+        id: user._id,
         token: jwt.sign({ email: profile?.email }, process.env.JWT_SECRET, {
           expiresIn: "1d",
         }),
@@ -96,6 +117,7 @@ router.post("/signup", upload.single("picture"), async (req, res) => {
 
 router.post("/login", async (req, res) => {
   try {
+    let profile;
     if (req.body.credential) {
       const verificationResponse = await verifyGoogleToken(req.body.credential);
       if (verificationResponse.error) {
@@ -103,35 +125,50 @@ router.post("/login", async (req, res) => {
           message: verificationResponse.error,
         });
       }
+      profile = verificationResponse?.payload;
+    } else {
+      profile = req.body;
+    }
 
-      const profile = verificationResponse?.payload;
+    const user = await User.findOne({ email: profile.email });
 
-      const existsInDB = await User.find({ email: person?.email });
-
-      if (!existsInDB) {
-        return res.status(400).json({
-          message: "You are not registered. Please sign up",
-        });
-      }
-
-      res.status(201).json({
-        message: "Login was successful",
-        user: {
-          firstName: profile?.given_name,
-          lastName: profile?.family_name,
-          picture: profile?.picture,
-          email: profile?.email,
-          token: jwt.sign({ email: profile?.email }, process.env.JWT_SECRET, {
-            expiresIn: "1d",
-          }),
-        },
+    if (!user) {
+      return res.status(400).json({
+        message: "You are not registered. Please sign up",
       });
     }
+    if (user.accountStatus !== "active") {
+      return res.status(400).json({
+        message: "Your account is not active. Please contact admin.",
+      });
+    }
+    const match = await bcrypt.compare(profile.password, user.password);
+    if (!match) {
+      return res.status(400).json({
+        message: "Invalid email or password",
+      });
+    }
+
+    res.status(201).json({
+      message: "Login was successful",
+      user: {
+        name: user.name,
+        picture: user.profilePicture,
+        email: user.email,
+        id: user._id,
+        token: jwt.sign(
+          { email: user.email, id: user._id },
+          process.env.JWT_SECRET,
+          {
+            expiresIn: "1d",
+          }
+        ),
+      },
+    });
   } catch (error) {
     res.status(500).json({
-      message: error?.message || error,
+      message: error.message || error,
     });
   }
 });
-
 module.exports = router;
