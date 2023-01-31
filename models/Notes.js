@@ -9,6 +9,11 @@ const NotesSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
+  noteType: {
+    type: String,
+    default: "personal",
+    enum: ["shared", "personal"],
+  },
   sharedWith: [
     {
       type: mongoose.Schema.Types.ObjectId,
