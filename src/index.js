@@ -6,7 +6,6 @@ const io = require("socket.io")(8900, {
   },
 });
 
-
 const socket = require("./socket")(io);
 const CONNECTION_STRING = process.env.CONNECTION_STRING;
 mongoose
@@ -25,7 +24,7 @@ mongoose
 const port = process.env.PORT || 5000;
 
 const startServer = () => {
-  server.listen(port, "192.168.100.10", () => {
+  server.listen(port, () => {
     console.log(`Server running on port ${port}`);
   });
 };
