@@ -1,4 +1,5 @@
 const { OAuth2Client } = require("google-auth-library");
+const { ChatGroup } = require("../models/ChatGroup");
 const router = require("express").Router();
 const { User } = require("../models/User");
 
@@ -73,6 +74,27 @@ router.put("/addfriend", (req, res) => {
       });
     });
   });
+});
+
+router.get("/chatGroups", async (req, res) => {
+  const userId = req.auth.id;
+
+  try {
+    const user = await User.findById(userId);
+
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    const chatGroups = await ChatGroup.find({
+      _id: { $in: user.chatGroups },
+    });
+
+    res.json({ chatGroups });
+  } catch (err) {
+    res
+      .status(500)
+      .json({ message: "Error retrieving chat groups", error: err.message });
+  }
 });
 
 module.exports = router;

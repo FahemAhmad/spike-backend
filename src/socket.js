@@ -11,9 +11,21 @@ const removeUser = (socketId) => {
   users = users.filter((user) => user.socketId !== socketId);
 };
 
-const getUser = (userId) => {
-  return users.find((user) => user.userId === userId);
+const getUsers = (userIds) => {
+  return userIds.map((userId) => {
+    const foundUser = users.find((user) => user.userId === userId);
+    return foundUser
+      ? {
+          userId: foundUser.userId,
+          socketId: foundUser.socketId,
+        }
+      : {};
+  });
 };
+
+// const getUser = (userId) => {
+//   return users.find((user) => user.userId === userId);
+// };
 
 exports = module.exports = function (io) {
   io.on("connection", (socket) => {
@@ -21,36 +33,58 @@ exports = module.exports = function (io) {
 
     socket.on("addUser", (userId) => {
       addUser(userId, socket.id);
-
-      io.emit("getUsers", users);
     });
 
     socket.on("sendMessage", (props) => {
-      const user = getUser(props.recieverId);
+      console.log("props", props);
+      const us = getUsers(props.recieverId);
 
-      if (user) {
-        io.to(user.socketId).emit("getMessage", props);
+      if (us && us.length) {
+        us.forEach((user) => {
+          io.to(user.socketId).emit("getMessage", props);
+        });
       }
     });
 
-    socket.on("callUser", ({ userToCall, signalData, from }) => {
-      console.log("users", users);
-      console.log("userToCall", userToCall);
-      console.log("from", from);
-      const user = getUser(userToCall);
-      if (user) io.to(user.socketId).emit("incomingCall", { from, signalData });
+    socket.on("callUser", (data) => {
+      const userIds = getUsers(data.usersToCall);
+
+      if (userIds && userIds.length) {
+        userIds.forEach((user) => {
+          io.to(user.socketId).emit("callUser", {
+            signal: data.signalData,
+            from: data.from,
+            name: data.name,
+          });
+        });
+      }
     });
 
-    socket.on("answer-made", ({ answer, id }) => {
-      const user = getUser(props.id);
+    socket.on("answerCall", (data) => {
+      const userIds = getUsers([data.to]);
+      if (userIds && userIds.length) {
+        userIds.forEach((user) => {
+          io.to(user.socketId).emit("callAccepted", data.signal);
+        });
+      }
+    });
 
-      io.to(user.socketId).emit("answer-made", { answer, id });
+    socket.on("endCall", (data) => {
+      const userIds = getUsers([data.to]);
+
+      if (userIds && userIds.length) {
+        userIds.forEach((user) => {
+          io.to(user.socketId).emit("endCall");
+        });
+      }
     });
 
     //When User Disconnects
     socket.on("disconnect", () => {
       removeUser(socket.id);
       io.emit("getUsers", users);
+
+      socket.broadcast.emit("callEnded");
     });
   });
 };

@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
 
 const groupChatSchema = new Schema({
-  name: {
+  title: {
     type: String,
     required: true,
   },
@@ -15,7 +15,8 @@ const groupChatSchema = new Schema({
   ],
   messages: [
     {
-      type: messageSchema,
+      type: Schema.Types.ObjectId,
+      ref: "Message",
     },
   ],
 });

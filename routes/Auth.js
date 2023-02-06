@@ -103,9 +103,7 @@ router.post("/signup", upload.single("picture"), async (req, res) => {
         picture: profile?.profilePicture,
         email: profile?.email,
         id: user._id,
-        token: jwt.sign({ email: profile?.email }, process.env.JWT_SECRET, {
-          expiresIn: "1d",
-        }),
+        token: jwt.sign({ email: profile?.email }, process.env.JWT_SECRET, {}),
       },
     });
   } catch (error) {
@@ -159,9 +157,7 @@ router.post("/login", async (req, res) => {
         token: jwt.sign(
           { email: user.email, id: user._id },
           process.env.JWT_SECRET,
-          {
-            expiresIn: "1d",
-          }
+          {}
         ),
       },
     });
