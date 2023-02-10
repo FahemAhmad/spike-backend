@@ -1,5 +1,6 @@
 const { OAuth2Client } = require("google-auth-library");
 const { ChatGroup } = require("../models/ChatGroup");
+const { OneToOneChat } = require("../models/OneToOneChat");
 const router = require("express").Router();
 const { User } = require("../models/User");
 
@@ -29,9 +30,37 @@ router.get("/friends", async (req, res) => {
     "name email profilePicture accountStatus"
   );
 
-  res.status(201).json({ data: user.friends });
-});
+  let friends = user.friends;
+  let sendFriends = [];
 
+  for (let i = 0; i < friends.length; i++) {
+    const chat = await OneToOneChat.findOne({
+      users: {
+        $all: [user._id, friends[i]._id],
+      },
+    }).populate("messages");
+
+    let unreadMessages = 0;
+    if (chat) {
+      for (let j = 0; j < chat.messages.length; j++) {
+        if (
+          !chat.messages[j].read &&
+          chat.messages[j].sender.toString() !== user._id.toString()
+        ) {
+          unreadMessages++;
+        }
+      }
+    }
+
+    friends[i].unreadMessages = unreadMessages;
+    sendFriends.push({
+      ...friends[i].toObject(),
+      unreadMessages: unreadMessages,
+    });
+  }
+
+  res.status(201).json({ data: sendFriends });
+});
 //add friends
 router.put("/addfriend", (req, res) => {
   const currentUserEmail = req.auth.email;

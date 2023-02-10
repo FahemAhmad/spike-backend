@@ -36,7 +36,6 @@ exports = module.exports = function (io) {
     });
 
     socket.on("sendMessage", (props) => {
-      console.log("props", props);
       const us = getUsers(props.recieverId);
 
       if (us && us.length) {

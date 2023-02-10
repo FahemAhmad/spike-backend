@@ -47,6 +47,34 @@ const upload = multer({
   fileFilter: fileFilter,
 });
 
+router.put("/mark-as-read", async (req, res) => {
+  const friendId = req.body.friendId;
+  const userId = req.auth.id;
+  const chat = await OneToOneChat.findOne({
+    users: {
+      $all: [userId, friendId],
+    },
+  }).populate("messages");
+
+  if (!chat) {
+    return res.status(404).json({
+      message: "Chat not found",
+    });
+  }
+
+  const promises = chat.messages.map(async (message) => {
+    if (message.sender.toString() !== userId.toString()) {
+      message.read = true;
+      await message.save();
+    }
+  });
+
+  await Promise.all(promises);
+  res.status(200).json({
+    message: "Messages marked as read.",
+  });
+});
+
 //get all chat
 router.get("/:userId", async (req, res) => {
   try {
@@ -111,7 +139,7 @@ router.post("/:id/message", upload.single("content"), async (req, res) => {
       message.attachment = `${basePath}${fileName}`;
       message.messageType = "attachment";
     }
-    console.log("messafe", message);
+
     //create the message in db
     const messageDb = new Message(message);
     await messageDb.save();
