@@ -63,12 +63,11 @@ router.post("/signup", upload.single("picture"), async (req, res) => {
     } else {
       const fileName = req.file.filename;
       const basePath = `${req.protocol}://${req.get("host")}/public/uploads/`;
-
       if (!req.body.password)
         return res.status(400).json({ message: "Invalid Input" });
 
       profile = {
-        given_name: req.body.name,
+        given_name: req.body.firstName + " " + req.body.lastName,
         email: req.body.email,
         password: req.body.password,
         profilePicture: `${basePath}${fileName}`,
@@ -78,9 +77,28 @@ router.post("/signup", upload.single("picture"), async (req, res) => {
 
     let isUser = await User.findOne({ email: profile?.email });
     if (isUser) {
-      return res.status(400).json({
-        message: "User with this email already exists",
-      });
+      // Check if the user has logged in with Google
+      if (profile?.accountStatus === "googleSignIn") {
+        // Return the user object with login response if the user already exists
+        return res.status(200).json({
+          message: "Login successful",
+          user: {
+            name: isUser.name,
+            picture: profile?.profilePicture,
+            email: isUser.email,
+            id: isUser._id,
+            token: jwt.sign(
+              { email: isUser.email, id: isUser._id },
+              process.env.JWT_SECRET,
+              {}
+            ),
+          },
+        });
+      } else {
+        return res.status(400).json({
+          message: "User with this email already exists",
+        });
+      }
     }
 
     const user = new User({
@@ -103,7 +121,11 @@ router.post("/signup", upload.single("picture"), async (req, res) => {
         picture: profile?.profilePicture,
         email: profile?.email,
         id: user._id,
-        token: jwt.sign({ email: profile?.email }, process.env.JWT_SECRET, {}),
+        token: jwt.sign(
+          { email: user.email, id: user._id },
+          process.env.JWT_SECRET,
+          {}
+        ),
       },
     });
   } catch (error) {
